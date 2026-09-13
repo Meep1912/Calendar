@@ -10,7 +10,7 @@ mainwindow = Tk()
 canvas = Canvas()
 mainwindow.title("Project")
 mainwindow.geometry("600x400")
-image1 = PhotoImage(file="dry-clean.png")
+image1 = PhotoImage(file="Empty.png")
 
 ttk.Button(mainwindow, text="Quit", command=mainwindow.destroy).pack(anchor="ne",side="right")
 ttk.Button(mainwindow, text="Help", ).pack(anchor="nw",side="left")
@@ -20,3 +20,4 @@ ttk.Button(mainwindow, text="Quit", command=mainwindow.destroy,image=image1).pac
 
 canvas.pack(anchor="center")
 mainwindow.mainloop()
+
