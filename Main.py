@@ -17,13 +17,14 @@ current_day = datetime.now().day
 current_month = datetime.now().month
 current_year = datetime.now().year
 
+
 # General  
 name = 0
 day = 0
 row1 = 0
 column1 = 0
 scale = 1
-xy_offset = [0,50]
+xy_offset = [50,100]
 mode = "month"
 
 # window 
@@ -31,75 +32,113 @@ mainwindow = Tk()
 mainwindow.title("Project")
 mainwindow.geometry("600x400")
 
-# loading and scaling image
+
 
 if mode =="month":
-    global true_scale
     scale = 2
-    true_scale = (1/scale)
+    true_scale = 1 / scale
+    current_display_month = current_month
+
+elif mode =="year":
+    scale = 4
+    true_scale = 1 / scale
 
 image1 = PhotoImage(file="Empty.png")
 image2 = image1.subsample(scale,scale)
 
 
+ttk.Button(mainwindow, text="Quit", command=mainwindow.destroy).place(x=0,y=0)
+ttk.Button(mainwindow, text="Help", ).place(x=80,y=0)
+ttk.Button(mainwindow, text="Settings", ).place(x=160,y=0)
 
-#ttk.Button(mainwindow, text="Quit", command=mainwindow.destroy).grid(column=0,row=0)
-#ttk.Button(mainwindow, text="Help", ).grid(column=1,row=0)
-#ttk.Button(mainwindow, text="Settings", ).grid(column=2,row=0)
+Button(
+       mainwindow,
+       command=lambda : change_month("-"), 
+       text="<",
+       borderwidth=0,
+       highlightthickness=0,
+       relief="flat",
+       bd=0,
+       padx=0,
+       pady=0).place(x=220,y=70)
+
+Button(
+       mainwindow,
+       command=lambda : change_month("O"), 
+       text="O",
+       borderwidth=0,
+       highlightthickness=0,
+       relief="flat",
+       bd=0,
+       padx=0,
+       pady=0).place(x=280,y=70)
+
+Button(
+       mainwindow,
+       command=lambda : change_month("+"), 
+       text=">",
+       borderwidth=0,
+       highlightthickness=0,
+       relief="flat",
+       bd=0,
+       padx=0,
+       pady=0).place(x=340,y=70)
+
+def change_month(sign):
+    if sign == "-":
+        current_display_month -= 1
+        draw_month(xy_offset,spacing,current_display_month,true_scale)
+    elif sign == "+":
+        current_display_month += 1
+        draw_month(xy_offset,spacing,current_display_month,true_scale)
+    elif sign == "O":
+        current_display_month = current_month
+        draw_month(xy_offset,spacing,current_display_month,true_scale)
+
 
 def update_coords():
      x = mainwindow.winfo_pointerx() - mainwindow.winfo_rootx()
      y = mainwindow.winfo_pointery() - mainwindow.winfo_rooty()
      return x , y
 
-def pressed1(mode,xy_offset):
+def pressed1(day): 
+    label1.config(text=day)
 
-    # when any day button is pressed, runs update_coords which returns x+y of mouse,
-    # these values are ajusted based off the scale of the boxes and the offset they have
+def draw_month(xy_offset,spacing,month,true_scale,):
 
-    if mode == "month":
-        base = 50 * true_scale
-        x,y = update_coords()
-        x -= xy_offset[0]
-        y -= xy_offset[1]
-        print("xy: ",x,y)
-        x = myround(x)
-        y = myround(y)
-        print("x_round,y: ",x,y)
-        x = x + 10*y
-        clicked_day = x
-        label1.config(text=f"{clicked_day}")
-
-def myround(a):
-    base = 50*true_scale
-    nearest_a =  base * round(a/base)
-    return nearest_a / base
-
-
-
-def draw_days(xy_offset):
-    y_ = 0
-    x_ = 0
-    temp = 0
-    for i in range(31):
-        x = (i % 10) * 50 + xy_offset[0]
-        y = (i // 10) * 50 + xy_offset[1]
+    for i in range(calendar.monthrange(current_year,month)[1]):
+        x = (i % 10) * 50*true_scale*spacing + xy_offset[0]
+        y = (i // 10) * 50*true_scale*spacing + xy_offset[1]
 
         Button(
             mainwindow,
             image=image2,
-            command=lambda: pressed1(mode, xy_offset),
+            command=lambda day=i+1: pressed1(day),
             borderwidth=0,
             highlightthickness=0,
             relief="flat",
             bd=0,
             padx=0,
-            pady=0).place(x=x, y=y)
+            pady=0
+        ).place(x=x, y=y)
+
+
+
 
 label1 = Label(mainwindow, text="")
 label1.place(x=0,y=0)
 
-draw_days(xy_offset)
+if mode =="month":
+    spacing = 2
+    draw_month(xy_offset,spacing,current_display_month,true_scale)
+
+
+elif mode =="year":
+    pass
+
+
+# loading and scaling image
+
 
 mainwindow.mainloop()
 
