@@ -2,25 +2,16 @@ import json
 from datetime import date, datetime, timedelta
 
 
-start = date(2025,1,1)
+start = date(2025, 1, 1)
 end = date(2026, 12, 31)
 
-all_dates = []
+all_dates = {}
 current = start
-
-with open("Days.json","r") as f:
-    loaded = json.load(f)
-
-
-
 while current <= end:
-    all_dates.append({
-        "year": current.year,
-        "month": current.month,
-        "day": current.day,
-        "events": []
-    })
+    all_dates[
+        f"{current.day:02d}|{current.month:02d}|{current.year}"
+        ] = []
     current += timedelta(days=1)
-
 with open("Days.json","w") as f:
-    json.dump(all_dates,f,indent=4)
+    days_json = json.dump(all_dates,f,indent=4)
+

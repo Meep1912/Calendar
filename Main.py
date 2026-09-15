@@ -1,11 +1,13 @@
 
 from tkinter import *
 
-from tkinter import ttk
+from tkinter import ttk, colorchooser
 
 import calendar
 
 from datetime import datetime, date
+
+import json
 
 
 # ============================================================
@@ -65,9 +67,9 @@ elif mode =="year":
     true_scale = 1 / scale
 
 
-# ------------------------------------------------------------
+
 # Images
-# ------------------------------------------------------------
+
 
 image1 = PhotoImage(file="Empty.png")
 image2 = PhotoImage(file="Full.png")
@@ -78,15 +80,12 @@ day_came_icon = image2.subsample(scale,scale)
 today_icon = image3.subsample(scale,scale)
 
 
-# ============================================================
 # FUNCTIONS
-# ============================================================
 
 
-# ------------------------------------------------------------
+
+
 # Change displayed month
-# ------------------------------------------------------------
-
 def change_month(sign,xy_offset,spacing,true_scale):
     global current_display_month, current_display_year
     if sign == "-":
@@ -112,9 +111,9 @@ def change_month(sign,xy_offset,spacing,true_scale):
 
 
 
-# ------------------------------------------------------------
+
 # Get mouse coordinates
-# ------------------------------------------------------------
+
 
 def update_coords():
 
@@ -124,17 +123,17 @@ def update_coords():
      return x , y
 
 
-# ------------------------------------------------------------
+
 # When a day button is pressed
-# ------------------------------------------------------------
+
 
 def pressed1(day): 
     draw_day_veiw(day)
 
 
-# ------------------------------------------------------------
+
 # Day view window
-# ------------------------------------------------------------
+
 
 global current_day_frame
 current_day_frame = None
@@ -152,11 +151,165 @@ def draw_day_veiw(day):
         current_day_frame,
         text=str(day) + " " + month_name + " "+ str(current_display_year),
         font=("Times New Roman",15,"bold")).place(x=30,y=0)
+    # add event
+    ttk.Button(
+        current_day_frame,
+        text="add event",
+        command=lambda: add_event_veiw(day)
+    ).place(x=30,y=30)
+    with open("Days.json", "r") as f:
+        days_json = json.load(f)
+    with open("Events.json", "r") as f:
+        events_json = json.load(f)
+    temp = f"{day:02d}|{current_display_month:02d}|{current_display_year}"
+    events = days_json[temp]
+    list_of_events_and_data = []
+    for event in events:
+        list_of_events_and_data.append(events_json[event])
+    i = 0
+    for event in list_of_events_and_data:
+        print(event)
+        data = event.split("|")
+        title = events[i]
+        start_time = data[0]
+        duration = data[1]
+        colour = data[2]
+        description = data[3]
+        ttk.Label(
+            current_day_frame,background=colour,
+            text=title
+        )
+        i +=1
+
+global add_event_frame
+add_event_frame = None
+
+def add_event_veiw(day):
+    global add_event_frame, colour_picked
+    if add_event_frame is not None:
+        add_event_frame.destroy()
+    add_event_frame = Toplevel()
+    current_day_frame.title("Project")
+    add_event_frame.geometry("600x400")
+    # title
+    ttk.Label(
+        add_event_frame,
+        text="Title",
+        font=("Times New Roman",15,"bold")).place(x=0,y=0)
+    Title_entry = ttk.Entry(
+        add_event_frame,
+    )
+    Title_entry.place(x=0,y=25)
+
+    # Start time
+
+    start_times = []
+    for hour in range(24):
+        for minute in range(0, 60, 15):
+            start_times.append(f"{hour:02d}:{minute:02d}")
+    ttk.Label(
+        add_event_frame,
+        text="Start Time",
+        font=("Times New Roman",15,"bold")).place(x=0,y=50)
+    Start_Entry = ttk.Combobox(
+        add_event_frame,
+        values=start_times
+        )
+    Start_Entry.place(x=0,y=75)
+
+    # duration
+
+    durations = ["5 min", "10 min", "15 min", "20 min",
+                 "30 min", "40 min", "50 min", "1 hour",
+                 "1 hour 30 min", "2 hours", "2 hours 30 min",
+                 "3 hours", "4 hours", "5 hours", "6 hours",
+                 "7 hours", "8 hours", "9 hours", "10 hours",
+                 "11 hours", "Whole day"]
+    ttk.Label(
+        add_event_frame,
+        text="Duration",
+        font=("Times New Roman",15,"bold")).place(x=0,y=100)
+    duration_entry = ttk.Combobox(
+        add_event_frame,
+        values=durations
+        )
+    duration_entry.place(x=0,y=125)
+
+    # Colour picker
+
+    ttk.Label(
+        add_event_frame,
+        text="Colour",
+        font=("Times New Roman",15,"bold")).place(x=0,y=150)
+    
+    colour_button = Button(
+    add_event_frame,
+    text="Choose Colour",
+    command=choose_colour,
+    )
+    colour_button.place(x=0,y=175)
+
+    
+    
+    # Description
+    ttk.Label(
+        add_event_frame,
+        text="Description",
+        font=("Times New Roman",15,"bold")).place(x=0,y=220)
+    Description_entry = Text(
+        add_event_frame,
+        height = 5,
+        width = 30,
+    )
+    Description_entry.place(x=0,y=245)
+    
+
+    # Done button
+    Done_Button = Button(
+        add_event_frame,
+        text="Done!",
+        command=lambda: Updates(Title_entry.get(),Start_Entry.get(),duration_entry.get(),colour_picked,Description_entry.get("1.0", "end"),day),
+        )
+    Done_Button.place(x=0,y=350)
 
 
-# ------------------------------------------------------------
-# Close day view
-# ------------------------------------------------------------
+def Updates(Title,Start,duration,colour,description,day):
+    Update_json(Title,Start,duration,colour,description)
+    Update_Days(Title, day)
+
+def Update_json(Title,Start,duration,colour,description):
+
+    with open("Events.json","r") as f:
+        events_json = json.load(f)
+
+    event_dictionary = {
+        Title: Start +"|"+ duration+"|"+ colour+"|"+description}
+    
+    events_json.update(event_dictionary)
+
+    with open("Events.json", "w") as f:
+        json.dump(events_json, f, indent=4)
+
+
+def Update_Days(Title, day):
+
+    global current_display_month, current_display_year
+
+    with open("Days.json", "r") as f:
+        days_json = json.load(f)
+
+    temp = f"{day:02d}|{current_display_month:02d}|{current_display_year}"
+
+    days_json[temp].append(Title)
+
+    with open("Days.json", "w") as f:
+        json.dump(days_json, f, indent=4)
+
+
+
+def choose_colour():
+    global colour_picked
+    colour_picked = colorchooser.askcolor()[1]
 
 def close_day_view():
     global current_day_frame
@@ -164,9 +317,8 @@ def close_day_view():
     current_day_frame = None
 
 
-# ------------------------------------------------------------
-# Draw the month
-# ------------------------------------------------------------
+
+# Draw month
 
 def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_year):
     global current_display_month
@@ -180,7 +332,7 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
         today = date(current_year,current_month,current_day)
 
 
-        # Determine whether this day is in the past,
+        # this day is in the past,
         # is today, or is still in the future.
 
         if button_date < today:
@@ -222,9 +374,9 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
         day_buttons.append(btn)
 
 
-# ------------------------------------------------------------
-# Delete all existing day buttons
-# ------------------------------------------------------------
+
+# Delete all day buttons
+
 
 def kill_button():
 
@@ -234,14 +386,7 @@ def kill_button():
     day_buttons.clear()
 
 
-# ============================================================
 # GUI
-# ============================================================
-
-
-# ------------------------------------------------------------
-# Top buttons
-# ------------------------------------------------------------
 
 ttk.Button(
     mainwindow,
@@ -258,10 +403,6 @@ ttk.Button(
     mainwindow,
     text="Settings").place(x=160,y=0)
 
-
-# ------------------------------------------------------------
-# Month navigation buttons
-# ------------------------------------------------------------
 
 Button(
        mainwindow,
@@ -296,14 +437,8 @@ Button(
        relief="flat",
        bd=0,
        padx=0,
-       pady=0
+       pady=0).place(x=340,y=70)
 
-).place(x=340,y=70)
-
-
-# ------------------------------------------------------------
-# Labels
-# ------------------------------------------------------------
 
 if mode =="month":
         
@@ -330,17 +465,10 @@ elif mode =="year":
     pass
 
 
-# ------------------------------------------------------------
-# Day window close protocol
-# ------------------------------------------------------------
-
 if current_day_frame is not None:
     current_day_frame.protocol("WM_DELETE_WINDOW", close_day_view)
 
 
-# ============================================================
-# MAIN LOOP
-# ============================================================
 
 mainwindow.mainloop()
 
