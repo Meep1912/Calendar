@@ -147,13 +147,26 @@ def draw_day_veiw(day):
     current_day_frame = Toplevel()
     current_day_frame.title("Project")
     current_day_frame.geometry("600x400")
+    canvas = Canvas(current_day_frame)
+    scrollbar = ttk.Scrollbar(current_day_frame, orient="vertical", command=canvas.yview)
+    scrollable_frame = Frame(canvas, width=600,height=1100)
+    scrollable_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
     ttk.Label(
-        current_day_frame,
+        scrollable_frame,
         text=str(day) + " " + month_name + " "+ str(current_display_year),
         font=("Times New Roman",15,"bold")).place(x=30,y=0)
     # add event
     ttk.Button(
-        current_day_frame,
+        scrollable_frame,
         text="add event",
         command=lambda: add_event_veiw(day)
     ).place(x=30,y=30)
@@ -166,24 +179,74 @@ def draw_day_veiw(day):
     list_of_events_and_data = []
     for event in events:
         list_of_events_and_data.append(events_json[event])
+    grid_ = []
+    y1=0
+    for hour in range(24):
+        for minute in range(0, 60, 30):
+            grid_.append(f"{hour:02d}:{minute:02d}")
+    for time in grid_:
+        y1 += 1
+        ttk.Label(
+                    scrollable_frame,
+                    borderwidth=0,
+                    relief="flat",
+                    text=time).place(x=0,y=(20*y1+60))
+    
     i = 0
     for event in list_of_events_and_data:
+
         print(event)
         data = event.split("|")
         title = events[i]
         start_time = data[0]
         duration = data[1]
+        duration = duration_to_mins(duration)
         colour = data[2]
         description = data[3]
-        ttk.Label(
-            current_day_frame,background=colour,
-            text=title
+
+        # work out start_time in mins
+        start_time_mins = start_time.split(":")
+        hours = int(start_time_mins[0])
+        mins = int(start_time_mins[1])
+        start_time_mins = hours*60 + mins
+
+
+        height1 = duration / 30 * 20
+        y1 =start_time_mins / 30 * 20 + 80
+
+        cool_event = Frame(
+            scrollable_frame,
+            width=400,
+            height=height1,
+            bg=colour,
         )
-        i +=1
+        cool_event.place(x=50,y=y1)
+        Label(
+            cool_event,
+            text=title,
+            relief="flat",
+            border=0,
+        ).place(x=10,y=20)
+
 
 global add_event_frame
 add_event_frame = None
 
+def duration_to_mins(x):
+    if "Whole day" in x:
+        return 1440
+    if "hour" in x:
+        parts = x.split()
+        hours = int(parts[0])
+        if "min" in x:
+            mins = int(parts[2])
+        else:
+            mins = 0
+        return hours*60+mins
+    if "min" in x:
+        mins = x.split()[0]
+        return mins
+    
 def add_event_veiw(day):
     global add_event_frame, colour_picked
     if add_event_frame is not None:
