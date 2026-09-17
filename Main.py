@@ -10,9 +10,8 @@ from datetime import datetime, date
 import json
 
 
-# ============================================================
+
 # VARIABLES
-# ============================================================
 
 
 # ------------------------------------------------------------
@@ -39,7 +38,8 @@ scale = 1
 xy_offset = [50,100]
 mode = "month"
 day_buttons = []
-
+global calendar_zoom
+calendar_zoom = 20                                                                                                                  
 
 # ------------------------------------------------------------
 # Window
@@ -82,10 +82,8 @@ today_icon = image3.subsample(scale,scale)
 
 # FUNCTIONS
 
+# function which sets the month veiw
 
-
-
-# Change displayed month
 def change_month(sign,xy_offset,spacing,true_scale):
     global current_display_month, current_display_year
     if sign == "-":
@@ -109,11 +107,7 @@ def change_month(sign,xy_offset,spacing,true_scale):
 
     draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_year)
 
-
-
-
 # Get mouse coordinates
-
 
 def update_coords():
 
@@ -123,83 +117,131 @@ def update_coords():
      return x , y
 
 
-
-# When a day button is pressed
-
-
-def pressed1(day): 
-    draw_day_veiw(day)
-
-
-
 # Day view window
 
 
 global current_day_frame
 current_day_frame = None
 
-
 def draw_day_veiw(day):
-    global current_day_frame,current_display_year
+
+    global current_day_frame,current_display_year, calendar_zoom
     month_name = calendar.month_name[current_display_month]
+
+    # detect if there is a day frame already being displayed
     if current_day_frame is not None:
         current_day_frame.destroy()
+
+    # window settings
+
     current_day_frame = Toplevel()
     current_day_frame.title("Project")
     current_day_frame.geometry("600x400")
+
+    # scroll bar logic
+
     canvas = Canvas(current_day_frame)
     scrollbar = ttk.Scrollbar(current_day_frame, orient="vertical", command=canvas.yview)
-    scrollable_frame = Frame(canvas, width=600,height=1100)
+    scrollable_frame = Frame(canvas, width=600,height=100*calendar_zoom)
     scrollable_frame.bind(
         "<Configure>",
         lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
     )
     canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
     canvas.configure(yscrollcommand=scrollbar.set)
-    
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
+    current_day_frame.bind("<Button-4>", lambda event: canvas.yview_scroll(-1, "units"))
+    current_day_frame.bind("<Button-5>", lambda event: canvas.yview_scroll(1, "units"))
+    
 
+    # Label showing the day month and year of the clicked dot
     ttk.Label(
         scrollable_frame,
         text=str(day) + " " + month_name + " "+ str(current_display_year),
         font=("Times New Roman",15,"bold")).place(x=30,y=0)
-    # add event
+
+    # zoom buttons
+    inc = Button(
+        scrollable_frame,
+        text="+",
+        command= lambda: calendar_zoom_function("+",day)).place(x=150,y=0)            
+    dec = Button(
+        scrollable_frame,
+        text="-",
+        command= lambda: calendar_zoom_function("-",day)).place(x=185,y=0)
+
+
+    # add event button
     ttk.Button(
         scrollable_frame,
         text="add event",
         command=lambda: add_event_veiw(day)
     ).place(x=30,y=30)
+
+    # -------render the current events-----------
+    
+    # load files
+
     with open("Days.json", "r") as f:
         days_json = json.load(f)
+
     with open("Events.json", "r") as f:
         events_json = json.load(f)
+
+    with open("Repeats.json", "r") as f:
+        repeats_json = json.load(f)
+
+    # Get day of the week
+    day_name = date(current_display_year, current_display_month, day).strftime("%A")
+
+    # get events on that day (day of the week)
+    day_name = "Every "+day_name
+    repeating_events = repeats_json[day_name]
+    # add the daily events
+    repeating_events.extend(repeats_json["Every Day"])
+
+    # format the clicked day's date into a key for Days.json
     temp = f"{day:02d}|{current_display_month:02d}|{current_display_year}"
+    # fetch a list of events
     events = days_json[temp]
+    # append list of events for repeating_events making sure no duplicates r pressent
+    for event in repeating_events:
+        if event not in events:
+            events.append(event)
+
+    # The events coraspond to keys in Events.json this fetches the data for each event in that day
     list_of_events_and_data = []
     for event in events:
         list_of_events_and_data.append(events_json[event])
+
+    # Creates a list of values corasponding to time
     grid_ = []
     y1=0
     for hour in range(24):
         for minute in range(0, 60, 30):
             grid_.append(f"{hour:02d}:{minute:02d}")
+    grid_.append("24:00")
+
+    # make a label for each time with increasing distance
     for time in grid_:
-        y1 += 1
         ttk.Label(
                     scrollable_frame,
                     borderwidth=0,
                     relief="flat",
-                    text=time).place(x=0,y=(20*y1+60))
+                    text=time).place(x=0,y=(y1*calendar_zoom+80))
+        
+        y1 += 1
     
     i = 0
+
+    # Create a frame for each event
     for event in list_of_events_and_data:
 
-        print(event)
         data = event.split("|")
         title = events[i]
         start_time = data[0]
-        duration = data[1]
+        duration = data[1] 
         duration = duration_to_mins(duration)
         colour = data[2]
         description = data[3]
@@ -210,9 +252,8 @@ def draw_day_veiw(day):
         mins = int(start_time_mins[1])
         start_time_mins = hours*60 + mins
 
-
-        height1 = duration / 30 * 20
-        y1 =start_time_mins / 30 * 20 + 80
+        height1 = int(duration) / 30 * calendar_zoom 
+        y1 =start_time_mins / 30* calendar_zoom  + 80
 
         cool_event = Frame(
             scrollable_frame,
@@ -221,18 +262,137 @@ def draw_day_veiw(day):
             bg=colour,
         )
         cool_event.place(x=50,y=y1)
-        Label(
+        cool_event.lift()
+        cool_event.bind("<Button-1>", lambda event: event_clicked(title,day))
+
+        cool_label = Label(
             cool_event,
             text=title,
             relief="flat",
             border=0,
-        ).place(x=10,y=20)
+            bg=colour
+        )
+        cool_label.place(x=10,y=20)
+        cool_label.lift()
+        cool_label.bind("<Button-1>", lambda event: event_clicked(title,day))
+        if height1 > 100:
+            Label(
+                cool_event,
+                text=description,
+                relief="flat",
+                border=0,
+                bg=colour
+            ).place(x=10,y=40)
+        i += 1
 
+global current_event_frame
+current_event_frame = None
+
+def calendar_zoom_function(zoom,day):
+    global calendar_zoom
+
+    if zoom == "+" and calendar_zoom +10 != 200:
+        calendar_zoom += 10
+    if zoom == "-" and calendar_zoom -10 != 0:
+        calendar_zoom -= 10
+    draw_day_veiw(day)
+    
+def event_clicked(Title,day):
+    global current_event_frame, current_display_month, current_display_year
+    # detect if there is a day frame already being displayed
+    if current_event_frame is not None:
+        current_event_frame.destroy()
+
+    # window settings
+
+    current_event_frame = Toplevel()
+    current_event_frame.title("Project")
+    current_event_frame.geometry("600x600")
+
+    Label(
+        current_event_frame,
+        text=Title
+    ).place(x=10,y=10)
+    if Title == "Comprehension":
+        
+        with open("Comprehension.json", "r", encoding="utf-8") as f:
+            Comprehension_json = json.load(f)
+
+        key = f"{day:02d}|{current_display_month:02d}|{current_display_year}"
+
+        todays_stuff = Comprehension_json[key]
+        text = todays_stuff["text"]
+        questions = todays_stuff["questions"]
+        correct_answer = todays_stuff["correct_answer"]
+        given_answers = todays_stuff["given_answer"]
+        while len(given_answers) < len(questions):
+            given_answers.append("")
+
+        Main = Text(
+            current_event_frame,
+            height=10,
+            width=65,
+            font=("Noto Sans CJK JP", 12))
+        Main.place(x=10,y=40)
+        Main.insert("1.0",text)
+
+        spacing = 53
+        answer_boxes = []
+        for i in range(0,len(questions)):
+            question = Text(
+                current_event_frame,
+                height=1,
+                width=45,
+                font=("Noto Sans CJK JP", 12))
+            question.place(
+                x=10,
+                y=300 + i * spacing
+                )
+            question.insert("1.0", questions[i])
+            question.config(state="disabled")
+            answer = Entry(
+                current_event_frame,
+                width=45
+            )
+            answer.place(
+                x=10,
+                y=328 + i * spacing
+                )
+            answer.insert("0",given_answers[i])
+            answer_boxes.append(answer)
+
+    submit_button = Button(
+        current_event_frame,
+        text="Done!",
+        command=lambda: submit_comprehension(answer_boxes,Main,todays_stuff,Comprehension_json,key)) 
+    submit_button.place(y=334+len(answer_boxes) * spacing,x=10)
+
+    # save 
+def submit_comprehension(answer_boxes,Main,todays_stuff,Comprehension_json,key):
+    given_answers = []
+    # get entry anwsers in a list
+    for box in answer_boxes:
+        given_answers.append(box.get())
+    # get main text
+    Main_Text = Main.get("1.0", "end-1c")
+    # submit button
+    # edit todays stuff with updated main text and given anwsers
+    todays_stuff["text"] = Main_Text
+    todays_stuff["given_answer"] = given_answers
+    # update whole dict
+    Comprehension_json[key] = todays_stuff
+    # give dict to save function
+    save_comprehension(Comprehension_json)
+
+def save_comprehension(Comprehension_json):
+    with open("Comprehension.json", "w", encoding="utf-8") as f:
+        json.dump(Comprehension_json, f, indent=4, ensure_ascii=False)   
 
 global add_event_frame
 add_event_frame = None
 
 def duration_to_mins(x):
+
     if "Whole day" in x:
         return 1440
     if "hour" in x:
@@ -326,19 +486,48 @@ def add_event_veiw(day):
     )
     Description_entry.place(x=0,y=245)
     
-
+    # Repeats
+    repeats = ["No Repeat","Every Day","Every Monday","Every Tuesday",
+               "Every Wendnesday","Every Thursday","Every Friday",
+               "Every Saturday","Every Sunday",]
+    ttk.Label(
+        add_event_frame,
+        text="Repeats",
+        font=("Times New Roman",15,"bold")).place(x=200,y=0)
+    repeats_entry = ttk.Combobox(
+            add_event_frame,
+            values=repeats
+            )
+    repeats_entry.place(x=200,y=25)
+    repeats_entry.insert(0,"No Repeat")
     # Done button
     Done_Button = Button(
         add_event_frame,
         text="Done!",
-        command=lambda: Updates(Title_entry.get(),Start_Entry.get(),duration_entry.get(),colour_picked,Description_entry.get("1.0", "end"),day),
+        command=lambda: Updates(Title_entry.get(),Start_Entry.get(),duration_entry.get(),colour_picked,Description_entry.get("1.0", "end"),day,repeats_entry.get()),
         )
     Done_Button.place(x=0,y=350)
 
 
-def Updates(Title,Start,duration,colour,description,day):
+def Updates(Title,Start,duration,colour,description,day,repeat_period):
     Update_json(Title,Start,duration,colour,description)
     Update_Days(Title, day)
+    Update_Repeats(Title,repeat_period)
+    add_event_frame.destroy()
+
+def Update_Repeats(Title,repeat_period):
+    # load the data in repeats
+    with open("Repeats.json","r") as f:
+        repeats_json = json.load(f)
+    # get the current repeating events on that schedule
+    current_repeating_events = repeats_json[repeat_period]
+    # add title / event to existing events
+    current_repeating_events.append(Title)
+    # write back to file
+    with open("Repeats.json", "w") as f:
+        json.dump(repeats_json, f, indent=4)
+
+
 
 def Update_json(Title,Start,duration,colour,description):
 
@@ -402,7 +591,7 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
             btn = Button(
                 mainwindow,
                 image=day_came_icon,
-                command=lambda day=i+1: pressed1(day),
+                command=lambda day=i+1: draw_day_veiw(day),
                 borderwidth=0,
                 highlightthickness=0,
                 relief="flat",
@@ -414,7 +603,7 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
             btn = Button(
                 mainwindow,
                 image=day_yet_to_come_icon,
-                command=lambda day=i+1: pressed1(day),
+                command=lambda day=i+1: draw_day_veiw(day),
                 borderwidth=0,
                 highlightthickness=0,
                 relief="flat",
@@ -426,7 +615,7 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
             btn = Button(
                 mainwindow,
                 image=today_icon,
-                command=lambda day=i+1: pressed1(day),
+                command=lambda day=i+1: draw_day_veiw(day),
                 borderwidth=0,
                 highlightthickness=0,
                 relief="flat",
