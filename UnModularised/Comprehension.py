@@ -15,10 +15,6 @@ def draw_comprehension(day, current_display_month, current_display_year, current
     given_answers = todays_stuff["given_answer"]
     spacing = 80
     answer_boxes = []
-    print("Text loaded:", len(text))
-    print("Questions:", len(questions))
-    print("Answers:", len(given_answers))
-    print("FRAME:", current_event_frame)
     while len(given_answers) < len(questions):
         given_answers.append("")
     Main = Text(

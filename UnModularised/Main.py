@@ -7,11 +7,10 @@ import calendar
 
 from datetime import datetime, date
 
-import json
-
 from Data import *
 
 from Comprehension import *
+
 load_files_startup()
 
 # VARIABLES
@@ -41,7 +40,6 @@ scale = 1
 xy_offset = [50,100]
 mode = "month"
 day_buttons = []
-global calendar_zoom
 calendar_zoom = 20                                                                                                                  
 
 # ------------------------------------------------------------
@@ -57,19 +55,14 @@ mainwindow.geometry("600x400")
 # Display settings
 # ------------------------------------------------------------
 
-if mode =="month":
-
+if mode == "month":
     scale = 2
     true_scale = 1 / scale
-    global current_display_month, current_display_year
-    current_display_month = current_month
-    current_display_year = current_year
+    current_display_date = [current_month, current_year]
 
-elif mode =="year":
+elif mode == "year":
     scale = 4
     true_scale = 1 / scale
-
-
 
 # Images
 
@@ -87,28 +80,33 @@ today_icon = image3.subsample(scale,scale)
 
 # function which sets the month veiw
 
-def change_month(sign,xy_offset,spacing,true_scale):
-    global current_display_month, current_display_year
-    if sign == "-":
-        if current_display_month != 1:
-            current_display_month -= 1
 
+def change_month(sign, xy_offset, spacing, true_scale):
+
+    global current_display_date
+
+    if sign == "+":
+
+        if current_display_date[0] != 1:
+            current_display_date[0] -= 1
         else:
-            current_display_year -=1
-            current_display_month = 12
+            current_display_date[1] -= 1
+            current_display_date[0] = 12
 
-    elif sign == "+":
-        if current_display_month != 12:
-            current_display_month += 1
+    elif sign == "-":
 
+        if current_display_date[0] != 12:
+            current_display_date[0] += 1
         else:
-            current_display_year += 1
-            current_display_month = 1
+            current_display_date[1] += 1
+            current_display_date[0] = 1
 
     elif sign == "O":
-        current_display_month = current_month
 
-    draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_year)
+        current_display_date[0] = datetime.now().month
+        current_display_date[1] = datetime.now().year
+
+    draw_month(xy_offset, spacing, true_scale)
 
 # Get mouse coordinates
 
@@ -123,13 +121,13 @@ def update_coords():
 # Day view window
 
 
-global current_day_frame
 current_day_frame = None
 
 def draw_day_veiw(day):
 
-    global current_day_frame,current_display_year, calendar_zoom
-    month_name = calendar.month_name[current_display_month]
+    global current_day_frame, calendar_zoom
+
+    month_name = calendar.month_name[current_display_date[0]]
 
     # detect if there is a day frame already being displayed
     if current_day_frame is not None:
@@ -161,7 +159,7 @@ def draw_day_veiw(day):
     # Label showing the day month and year of the clicked dot
     ttk.Label(
         scrollable_frame,
-        text=str(day) + " " + month_name + " "+ str(current_display_year),
+        text=str(day) + " " + month_name + " "+ str(current_display_date[1]),
         font=("Times New Roman",15,"bold")).place(x=30,y=0)
 
     # zoom buttons
@@ -191,7 +189,7 @@ def draw_day_veiw(day):
     repeats_json = load_file("Repeats")
     
     # Get day of the week
-    day_name = date(current_display_year, current_display_month, day).strftime("%A")
+    day_name = date(current_display_date[1],current_display_date[0],day).strftime("%A")
 
     # get events on that day (day of the week)
     day_name = "Every "+day_name
@@ -200,7 +198,7 @@ def draw_day_veiw(day):
     repeating_events.extend(repeats_json["Every Day"])
 
     # format the clicked day's date into a key for Days.json
-    temp = f"{day:02d}|{current_display_month:02d}|{current_display_year}"
+    temp = f"{day:02d}|{current_display_date[0]:02d}|{current_display_date[1]}"
     # fetch a list of events
     events = days_json[temp]
     # append list of events for repeating_events making sure no duplicates r pressent
@@ -283,7 +281,6 @@ def draw_day_veiw(day):
             ).place(x=10,y=40)
         i += 1
 
-global current_event_frame
 current_event_frame = None
 
 def calendar_zoom_function(zoom,day):
@@ -296,7 +293,7 @@ def calendar_zoom_function(zoom,day):
     draw_day_veiw(day)
     
 def event_clicked(Title,day):
-    global current_event_frame, current_display_month, current_display_year
+    global current_event_frame, current_display_date
     # detect if there is a day frame already being displayed
     if current_event_frame is not None:
         current_event_frame.destroy()
@@ -312,10 +309,9 @@ def event_clicked(Title,day):
         text=Title
     ).place(x=10,y=10)
     if Title == "Comprehension":
-        draw_comprehension(day, current_display_month, current_display_year, current_event_frame)
+        draw_comprehension(day, current_display_date[0], current_display_date[1], current_event_frame)
         
 
-global add_event_frame
 add_event_frame = None
 
 def duration_to_mins(x):
@@ -468,14 +464,10 @@ def Update_json(Title,Start,duration,colour,description):
 
 def Update_Days(Title, day):
 
-    global current_display_month, current_display_year
-
+    global current_display_date
     days_json = load_file("Days")
-
-    temp = f"{day:02d}|{current_display_month:02d}|{current_display_year}"
-
+    temp = f"{day:02d}|{current_display_date[0]:02d}|{current_display_date[1]}"
     days_json[temp].append(Title)
-
     save_file("Days",days_json)
 
 
@@ -494,22 +486,31 @@ def close_day_view():
 
 # Draw month
 
-def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_year):
-    global current_display_month
-    month_name = calendar.month_name[current_display_month]
-    month_label.config(text=month_name+" "+str(current_display_year))
-    kill_button()
-    for i in range(calendar.monthrange(current_year,current_display_month)[1]):
-        x = (i % 10) * 50*true_scale*spacing + xy_offset[0]
-        y = (i // 10) * 50*true_scale*spacing + xy_offset[1]
-        button_date = date(current_display_year,current_display_month,i + 1)
-        today = date(current_year,current_month,current_day)
+def draw_month(xy_offset, spacing, true_scale):
 
+    current_display_month = current_display_date[0]
+    current_display_year = current_display_date[1]
+
+    month_name = calendar.month_name[current_display_month]
+
+    month_label.config(text=month_name + " " + str(current_display_year))
+
+    kill_button()
+
+    for i in range(calendar.monthrange(current_display_year, current_display_month)[1]):
+
+        x = (i % 10) * 50 * true_scale * spacing + xy_offset[0]
+
+        y = (i // 10) * 50 * true_scale * spacing + xy_offset[1]
+
+        button_date = date(current_display_year,current_display_month,i + 1)
+        today = date.today()
 
         # this day is in the past,
         # is today, or is still in the future.
 
         if button_date < today:
+
             btn = Button(
                 mainwindow,
                 image=day_came_icon,
@@ -519,9 +520,11 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
                 relief="flat",
                 bd=0,
                 padx=0,
-                pady=0)
+                pady=0
+            )
 
         if button_date > today:
+
             btn = Button(
                 mainwindow,
                 image=day_yet_to_come_icon,
@@ -531,9 +534,11 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
                 relief="flat",
                 bd=0,
                 padx=0,
-                pady=0)
+                pady=0
+            )
 
         if button_date == today:
+
             btn = Button(
                 mainwindow,
                 image=today_icon,
@@ -543,7 +548,9 @@ def draw_month(xy_offset,spacing,true_scale,current_day,current_month,current_ye
                 relief="flat",
                 bd=0,
                 padx=0,
-                pady=0)
+                pady=0
+            )
+
         btn.place(x=x, y=y)
         day_buttons.append(btn)
 
@@ -580,7 +587,7 @@ ttk.Button(
 
 Button(
        mainwindow,
-       command=lambda : change_month("-",xy_offset,spacing,true_scale), 
+       command=lambda : change_month("+",xy_offset,spacing,true_scale), 
        text="<",
        borderwidth=0,
        highlightthickness=0,
@@ -604,7 +611,7 @@ Button(
 
 Button(
        mainwindow,
-       command=lambda : change_month("+",xy_offset,spacing,true_scale), 
+       command=lambda : change_month("-",xy_offset,spacing,true_scale), 
        text=">",
        borderwidth=0,
        highlightthickness=0,
@@ -624,14 +631,7 @@ if mode =="month":
 
     spacing = 2
 
-    draw_month(
-        xy_offset,
-        spacing,
-        true_scale,
-        current_day,
-        current_month,
-        current_year
-    )
+    draw_month(xy_offset, spacing, true_scale)  
 
 
 
