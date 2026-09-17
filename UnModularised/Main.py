@@ -9,7 +9,7 @@ from datetime import datetime, date
 
 import json
 
-
+from Data import *
 
 # VARIABLES
 
@@ -336,7 +336,7 @@ def event_clicked(Title,day):
         Main.place(x=10,y=40)
         Main.insert("1.0",text)
 
-        spacing = 53
+        spacing = 80
         answer_boxes = []
         for i in range(0,len(questions)):
             question = Text(
@@ -367,7 +367,107 @@ def event_clicked(Title,day):
         command=lambda: submit_comprehension(answer_boxes,Main,todays_stuff,Comprehension_json,key)) 
     submit_button.place(y=334+len(answer_boxes) * spacing,x=10)
 
+    add_questions = Button(
+        current_event_frame,
+        text="Add",
+        command=lambda:add_question_veiw(key))
+    add_questions.place(x=120,y=5)
+
     # save 
+global add_questions_frame
+add_questions_frame= None
+
+
+def add_question_veiw(key):
+    global add_questions_frame
+    # detect if there is a day frame already being displayed
+    if add_questions_frame is not None:
+        add_questions_frame.destroy()
+
+    # window settings
+
+    add_questions_frame = Toplevel()
+    add_questions_frame.title("Project")
+    add_questions_frame.geometry("600x600")
+
+    # scroll bar logic
+
+    canvas2 = Canvas(add_questions_frame)
+    scrollbar2 = ttk.Scrollbar(add_questions_frame, orient="vertical", command=canvas2.yview)
+    scrollable_frame2 = Frame(canvas2, height=4000,width=600)
+    scrollable_frame2.bind(
+        "<Configure>",
+        lambda e: canvas2.configure(scrollregion=canvas2.bbox("all"))
+    )
+    canvas2.create_window((0, 0), window=scrollable_frame2, anchor="nw")
+    canvas2.configure(yscrollcommand=scrollbar2.set)
+    canvas2.pack(side="left", fill="both", expand=True)
+    scrollbar2.pack(side="right", fill="y")
+    add_questions_frame.bind("<Button-4>", lambda event: canvas2.yview_scroll(-1, "units"))
+    add_questions_frame.bind("<Button-5>", lambda event: canvas2.yview_scroll(1, "units"))
+
+    # entry box for string of text
+    question = Text(
+        scrollable_frame2,
+        height=100,
+        width=60,
+        font=("Noto Sans CJK JP", 12))
+    question.place(
+                x=10,
+                y=40,
+                )
+    # button to enter data into decoder
+    submit_add_questions = Button(
+        scrollable_frame2,
+        text="Done!",
+        command=lambda:decode_question_data(question.get("1.0", "end-1c")))
+    submit_add_questions.place(x=10,y=0)
+
+
+
+
+ 
+def decode_question_data(data):
+
+    data_list = data.splitlines()
+
+
+    # Find every Date
+            # load the file
+
+    with open("Comprehension.json", "r", encoding="utf-8") as f:
+            Comprehension_json = json.load(f)
+
+
+    date_indexes = [
+        i for i, line in enumerate(data_list)
+        if line == "Date"
+    ]
+    for i, date_index in enumerate(date_indexes):
+        # End of this day's data
+        if i + 1 < len(date_indexes):
+            end = date_indexes[i + 1]
+        else:
+            end = len(data_list)
+        day_data = data_list[date_index:end]
+        Text_start = day_data.index("Text")
+        Questions_start = day_data.index("Questions")
+        Answers_start = day_data.index("Answers")
+        date = day_data[1]
+        text = "\n".join(day_data[Text_start + 1:Questions_start])
+        questions = day_data[Questions_start + 1:Answers_start]
+        answers = day_data[Answers_start + 1:]
+
+        Comprehension_json[date] = {
+            "text": text,
+            "questions": questions,
+            "correct_answer": answers,
+            "given_answer":[]}
+        
+        with open("Comprehension.json", "w", encoding="utf-8") as f:
+            json.dump(Comprehension_json, f, indent=4, ensure_ascii=False)   
+
+
 def submit_comprehension(answer_boxes,Main,todays_stuff,Comprehension_json,key):
     given_answers = []
     # get entry anwsers in a list
