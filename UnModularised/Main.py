@@ -166,11 +166,11 @@ def draw_day_veiw(day):
     inc = Button(
         scrollable_frame,
         text="+",
-        command= lambda: calendar_zoom_function("+",day)).place(x=150,y=0)            
+        command= lambda: calendar_zoom_function("+",day)).place(x=200,y=0)            
     dec = Button(
         scrollable_frame,
         text="-",
-        command= lambda: calendar_zoom_function("-",day)).place(x=185,y=0)
+        command= lambda: calendar_zoom_function("-",day)).place(x=220,y=0)
 
 
     # add event button

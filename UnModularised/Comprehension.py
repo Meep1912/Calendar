@@ -13,26 +13,26 @@ def draw_comprehension(day, current_display_month, current_display_year, current
     questions = todays_stuff["questions"]
     correct_answer = todays_stuff["correct_answer"]
     given_answers = todays_stuff["given_answer"]
-    spacing = 80
+    spacing = 100
     answer_boxes = []
     while len(given_answers) < len(questions):
         given_answers.append("")
     Main = Text(
         current_event_frame,
-        height=10,
-        width=80,
-        font=("Noto Sans CJK JP", 12))
+        height=13,
+        width=50,
+        font=(8))
     Main.place(x=10,y=40)
     Main.insert("1.0",text)
     for i in range(0,len(questions)):
 
-            question = Text(current_event_frame,height=1,width=80,font=("Noto Sans CJK JP", 12))
-            question.place(x=10,y=300 + i * spacing)
+            question = Text(current_event_frame,height=2,width=45,font=(8))
+            question.place(x=10,y=400 + i * spacing)
             question.insert("1.0", questions[i])
             question.config(state="disabled")
 
             answer = Entry(current_event_frame,width=45)
-            answer.place(x=10,y=328 + i * spacing)
+            answer.place(x=10,y=460 + i * spacing)
             answer.insert("0",given_answers[i])
             answer_boxes.append(answer)
 
@@ -40,7 +40,7 @@ def draw_comprehension(day, current_display_month, current_display_year, current
         current_event_frame,
         text="Done!",
         command=lambda: submit_comprehension(answer_boxes,Main,todays_stuff,Comprehension_json,key)) 
-    submit_button.place(y=334+len(answer_boxes) * spacing,x=10)
+    submit_button.place(y=5,x=220)
 
     add_questions = Button(
         current_event_frame,
@@ -84,7 +84,7 @@ def add_question_veiw(key):
     # entry box for string of text
     question = Text(
         scrollable_frame2,
-        height=100,
+        height=150,
         width=90,
         font=("Noto Sans CJK JP", 12))
     question.place(
