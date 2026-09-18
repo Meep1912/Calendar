@@ -302,7 +302,7 @@ def event_clicked(Title,day):
 
     current_event_frame = Toplevel()
     current_event_frame.title("Project")
-    current_event_frame.geometry("600x600")
+    current_event_frame.geometry("800x600")
 
     Label(
         current_event_frame,

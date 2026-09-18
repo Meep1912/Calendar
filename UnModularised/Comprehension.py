@@ -20,13 +20,13 @@ def draw_comprehension(day, current_display_month, current_display_year, current
     Main = Text(
         current_event_frame,
         height=10,
-        width=65,
+        width=80,
         font=("Noto Sans CJK JP", 12))
     Main.place(x=10,y=40)
     Main.insert("1.0",text)
     for i in range(0,len(questions)):
 
-            question = Text(current_event_frame,height=1,width=45,font=("Noto Sans CJK JP", 12))
+            question = Text(current_event_frame,height=1,width=80,font=("Noto Sans CJK JP", 12))
             question.place(x=10,y=300 + i * spacing)
             question.insert("1.0", questions[i])
             question.config(state="disabled")
@@ -63,7 +63,7 @@ def add_question_veiw(key):
 
     add_questions_frame = Toplevel()
     add_questions_frame.title("Project")
-    add_questions_frame.geometry("600x600")
+    add_questions_frame.geometry("600x700")
 
     # scroll bar logic
 
@@ -85,7 +85,7 @@ def add_question_veiw(key):
     question = Text(
         scrollable_frame2,
         height=100,
-        width=60,
+        width=90,
         font=("Noto Sans CJK JP", 12))
     question.place(
                 x=10,
