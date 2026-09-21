@@ -5,7 +5,23 @@ from Data import load_file, save_file
 def draw_comprehension(day, current_display_month, current_display_year, current_event_frame):
 
     Comprehension_json = load_file("Comprehension")
-    
+
+        # scroll bar logic
+
+    canvas3 = Canvas(current_event_frame)
+    scrollbar3 = ttk.Scrollbar(current_event_frame, orient="vertical", command=canvas3.yview)
+    scrollable_frame3 = Frame(canvas3, height=4000,width=600)
+    scrollable_frame3.bind(
+        "<Configure>",
+        lambda e: canvas3.configure(scrollregion=canvas3.bbox("all"))
+    )
+    canvas3.create_window((0, 0), window=scrollable_frame3, anchor="nw")
+    canvas3.configure(yscrollcommand=scrollbar3.set)
+    canvas3.pack(side="left", fill="both", expand=True)
+    scrollbar3.pack(side="right", fill="y")
+    current_event_frame.bind("<Button-4>", lambda event: canvas3.yview_scroll(-1, "units"))
+    current_event_frame.bind("<Button-5>", lambda event: canvas3.yview_scroll(1, "units"))
+
     key = f"{day:02d}|{current_display_month:02d}|{current_display_year}"
 
     todays_stuff = Comprehension_json[key]
@@ -18,7 +34,7 @@ def draw_comprehension(day, current_display_month, current_display_year, current
     while len(given_answers) < len(questions):
         given_answers.append("")
     Main = Text(
-        current_event_frame,
+        scrollable_frame3,
         height=13,
         width=50,
         font=(8))
@@ -26,24 +42,24 @@ def draw_comprehension(day, current_display_month, current_display_year, current
     Main.insert("1.0",text)
     for i in range(0,len(questions)):
 
-            question = Text(current_event_frame,height=2,width=45,font=(8))
-            question.place(x=10,y=400 + i * spacing)
+            question = Text(scrollable_frame3,height=2,width=45,font=(8))
+            question.place(x=10,y=350 + i * spacing)
             question.insert("1.0", questions[i])
             question.config(state="disabled")
 
-            answer = Entry(current_event_frame,width=45)
-            answer.place(x=10,y=460 + i * spacing)
+            answer = Entry(scrollable_frame3,width=45)
+            answer.place(x=10,y=410 + i * spacing)
             answer.insert("0",given_answers[i])
             answer_boxes.append(answer)
 
     submit_button = Button(
-        current_event_frame,
+        scrollable_frame3,
         text="Done!",
         command=lambda: submit_comprehension(answer_boxes,Main,todays_stuff,Comprehension_json,key)) 
     submit_button.place(y=5,x=220)
 
     add_questions = Button(
-        current_event_frame,
+        scrollable_frame3,
         text="Add",
         command=lambda:add_question_veiw(key))
     add_questions.place(x=120,y=5)
