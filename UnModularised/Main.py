@@ -81,31 +81,41 @@ today_icon = image3.subsample(scale,scale)
 # function which sets the month veiw
 
 
+def make_scrollable(parent, width=800, height=4000):
+    """Returns a frame inside a scrollable canvas."""
+    canvas = Canvas(parent)
+    scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+    frame = Frame(canvas, width=width, height=height)
+    frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    window_id = canvas.create_window((0, 0), window=frame, anchor="nw")
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(window_id, width=e.width))
+
+    canvas.create_window((0, 0), window=frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+    parent.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+    parent.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+    return frame
+
 def change_month(sign, xy_offset, spacing, true_scale):
 
     global current_display_date
-
     if sign == "+":
-
         if current_display_date[0] != 1:
             current_display_date[0] -= 1
         else:
             current_display_date[1] -= 1
             current_display_date[0] = 12
-
     elif sign == "-":
-
         if current_display_date[0] != 12:
             current_display_date[0] += 1
         else:
             current_display_date[1] += 1
             current_display_date[0] = 1
-
     elif sign == "O":
-
         current_display_date[0] = datetime.now().month
         current_display_date[1] = datetime.now().year
-
     draw_month(xy_offset, spacing, true_scale)
 
 # Get mouse coordinates
@@ -136,25 +146,9 @@ def draw_day_veiw(day):
     # window settings
 
     current_day_frame = Toplevel()
-    current_day_frame.title("Project")
     current_day_frame.geometry("600x400")
 
-    # scroll bar logic
-
-    canvas = Canvas(current_day_frame)
-    scrollbar = ttk.Scrollbar(current_day_frame, orient="vertical", command=canvas.yview)
-    scrollable_frame = Frame(canvas, width=600,height=100*calendar_zoom)
-    scrollable_frame.bind(
-        "<Configure>",
-        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-    )
-    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-    canvas.configure(yscrollcommand=scrollbar.set)
-    canvas.pack(side="left", fill="both", expand=True)
-    scrollbar.pack(side="right", fill="y")
-    current_day_frame.bind("<Button-4>", lambda event: canvas.yview_scroll(-1, "units"))
-    current_day_frame.bind("<Button-5>", lambda event: canvas.yview_scroll(1, "units"))
-    
+    scrollable_frame = make_scrollable(parent=current_day_frame,height=100*calendar_zoom,width=400)
 
     # Label showing the day month and year of the clicked dot
     ttk.Label(

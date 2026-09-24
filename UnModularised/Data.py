@@ -15,8 +15,6 @@ def load_files_startup():
             files["Repeats"] = json.load(f)
         # Load Module data
 
-        with open("Comprehension.json", "r",encoding="utf-8") as f:
-            files["Comprehension"] = json.load(f)
 
 def load_file(filename):
     global files
