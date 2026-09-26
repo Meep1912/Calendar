@@ -1,7 +1,10 @@
 from tkinter import *
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from datetime import date, datetime
+import queue
+import threading
 
+import ai_feedback as ai
 import comprehension_db as db
 
 FONT = ("Yu Gothic UI", 12)
@@ -58,6 +61,35 @@ def start_autosave(window, save, every_ms=AUTOSAVE_MS):
     window.after(every_ms, tick)
 
 
+def run_in_background(window, work, on_result, on_error, poll_ms=100):
+    """Run work() on another thread, then call on_result/on_error back on the UI thread.
+
+    tkinter is not thread-safe: only the main thread may touch widgets. So the worker
+    thread never does. It puts its outcome in a queue, and the main thread checks the
+    queue every 100ms using window.after().
+    """
+    outcomes = queue.Queue()
+
+    def worker():
+        try:
+            outcomes.put(("ok", work()))
+        except Exception as error:
+            outcomes.put(("error", error))
+
+    def poll():
+        if not window.winfo_exists():
+            return
+        try:
+            kind, value = outcomes.get_nowait()
+        except queue.Empty:
+            window.after(poll_ms, poll)
+            return
+        (on_result if kind == "ok" else on_error)(value)
+
+    threading.Thread(target=worker, daemon=True).start()
+    window.after(poll_ms, poll)
+
+
 # ------------------------------------------------------------
 # The comprehension screen
 # ------------------------------------------------------------
@@ -77,6 +109,33 @@ def build_difficulty_box(frame, note, y):
     Label(frame, text="What did you find difficult?", font=FONT).place(x=PAD, y=y)
     return make_text_box(frame, y + 30, NOTE_HEIGHT, note)
 
+
+feedback_window = None
+
+
+def show_feedback_window(text, on_regenerate):
+    global feedback_window
+    if feedback_window is not None:
+        feedback_window.destroy()
+
+    window = Toplevel()
+    feedback_window = window
+    window.title("Feedback")
+    window.geometry("650x600")
+
+    box = Text(window, font=FONT, wrap="word")
+    box.place(x=PAD, y=40, relwidth=1, relheight=1, width=-2 * PAD, height=-50)
+    box.insert("1.0", text)
+    box.config(state="disabled")
+    box.bind("<Button-1>", lambda e: box.focus_set())   # selectable, so Yomitan can read it
+
+    def regenerate():
+        window.destroy()
+        on_regenerate()
+
+    Button(window, text="Regenerate", command=regenerate).place(x=10, y=5)
+
+
 def draw_comprehension(day, month, year, parent):
     the_date = date(year, month, day).isoformat()
     passage = db.get_passage_for_date(the_date)
@@ -88,7 +147,7 @@ def draw_comprehension(day, month, year, parent):
     Label(frame, text=the_date, font=FONT_BOLD).place(x=PAD, y=8)
     Button(frame, text="Add", command=add_question_view).place(x=130, y=5)
     status = Label(frame, text="")
-    status.place(x=370, y=8)
+    status.place(x=455, y=8)
 
     passage_box = note_box = rows = None   # filled in below when there is a passage
 
@@ -121,6 +180,48 @@ def draw_comprehension(day, month, year, parent):
         save()
         parent.destroy()
 
+    def request_feedback():
+        answers = [(qid, box.get("1.0", "end-1c")) for qid, box in rows]
+        if not any(a.strip() for _, a in answers):
+            status.config(text="Write an answer first")
+            return
+        save()      # so what's on screen and what's in the database agree
+        prompt = ai.build_prompt(
+            passage_box.get("1.0", "end-1c"),
+            [q["question"] for q in passage["questions"]],
+            [q["correct_answer"] for q in passage["questions"]],
+            [a for _, a in answers],
+            note_box.get("1.0", "end-1c"))
+
+        feedback_button.config(state="disabled", text="Thinking...")
+        status.config(text="Asking Claude...")
+
+        def done(text):
+            db.save_feedback(passage["id"], text)     # keep the result before touching any widget
+            passage["ai_feedback"] = text
+            try:
+                feedback_button.config(state="normal", text="Feedback")
+                status.config(text="Feedback ready")
+            except TclError:
+                return      # the screen was replaced while waiting; the feedback is still saved
+            show_feedback_window(text, request_feedback)
+
+        def failed(error):
+            try:
+                feedback_button.config(state="normal", text="Feedback")
+                status.config(text="Feedback failed")
+            except TclError:
+                return
+            messagebox.showerror("Feedback failed", str(error))
+
+        run_in_background(parent, lambda: ai.ask_claude(prompt), done, failed)
+
+    def on_feedback_click():
+        if passage["ai_feedback"]:
+            show_feedback_window(passage["ai_feedback"], request_feedback)   # free: already saved
+        else:
+            request_feedback()
+
     Button(frame, text="Next unfinished", command=jump_to_unfinished).place(x=250, y=5)
     parent.protocol("WM_DELETE_WINDOW", on_close)
     start_autosave(parent, save)
@@ -133,6 +234,9 @@ def draw_comprehension(day, month, year, parent):
     rows = build_question_rows(frame, passage["questions"])
     note_box = build_difficulty_box(frame, passage["difficulty_note"], note_y)
     Button(frame, text="Done!", command=save).place(x=190, y=5)
+    feedback_button = Button(frame, text="Feedback", command=on_feedback_click)
+    feedback_button.place(x=375, y=5)
+
 
 # ------------------------------------------------------------
 # Adding new passages

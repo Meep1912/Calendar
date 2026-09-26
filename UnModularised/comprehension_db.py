@@ -34,6 +34,13 @@ CREATE TABLE IF NOT EXISTS saved_words (
 );
 """
 
+# Columns added after the first version. "CREATE TABLE IF NOT EXISTS" does nothing
+# to a table that already exists, so new columns have to be added separately.
+# To add another column later, add one line here.
+COLUMN_MIGRATIONS = [
+    ("passages", "ai_feedback", "TEXT NOT NULL DEFAULT ''"),
+]
+
 
 @contextmanager
 def connection():
@@ -51,6 +58,10 @@ def connection():
 def init_db():
     with connection() as conn:
         conn.executescript(SCHEMA)
+        for table, column, definition in COLUMN_MIGRATIONS:
+            existing = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
+            if column not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 # ------------------------------------------------------------
@@ -90,6 +101,17 @@ def get_passage_for_date(date_iso):
                 (passage["id"],))
         ]
         return passage
+
+
+def get_oldest_unanswered_date(exclude=None):
+    """Oldest passage dated today or earlier with no saved answers, skipping `exclude`."""
+    with connection() as conn:
+        row = conn.execute(
+            "SELECT date FROM passages "
+            "WHERE answered_on IS NULL AND date <= ? AND date <> ? "
+            "ORDER BY date LIMIT 1",
+            (date.today().isoformat(), exclude or "")).fetchone()
+        return row["date"] if row else None
 
 
 # ------------------------------------------------------------
@@ -138,6 +160,12 @@ def save_answers(passage_id, text, difficulty_note, answers):
             [(a, qid) for qid, a in answers])
 
 
+def save_feedback(passage_id, feedback_text):
+    with connection() as conn:
+        conn.execute("UPDATE passages SET ai_feedback = ? WHERE id = ?",
+                     (feedback_text, passage_id))
+
+
 def add_saved_word(word, note="", passage_id=None):
     """Returns True if added, False if the word was already saved."""
     with connection() as conn:
@@ -146,14 +174,5 @@ def add_saved_word(word, note="", passage_id=None):
             (word.strip(), note, date.today().isoformat(), passage_id))
         return cur.rowcount == 1
 
-def get_oldest_unanswered_date(exclude=None):
-    """Oldest passage dated today or earlier with no saved answers, skipping `exclude`."""
-    with connection() as conn:
-        row = conn.execute(
-            "SELECT date FROM passages "
-            "WHERE answered_on IS NULL AND date <= ? AND date <> ? "
-            "ORDER BY date LIMIT 1",
-            (date.today().isoformat(), exclude or "")).fetchone()
-        return row["date"] if row else None
 
 init_db()
